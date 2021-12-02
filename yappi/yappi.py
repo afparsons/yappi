@@ -32,7 +32,7 @@ LINESEP = os.linesep
 COLUMN_GAP = 2
 YPICKLE_PROTOCOL = 2
 
-# this dict holds {full_name: code object or PyCfunctionobject}. We did not hold
+# this dict holds {full_name: code object or PyCFunctionObject}. We did not hold
 # this in YStat because it makes it unpickable. I played with some code to make it
 # unpickable by NULLifying the fn_descriptor attrib. but there were lots of happening
 # and some multithread tests were failing, I switched back to a simpler design:
@@ -40,7 +40,7 @@ YPICKLE_PROTOCOL = 2
 # will have this value only optionally because of unpickling problems of CodeObjects.
 _fn_descriptor_dict = {}
 
-COLUMNS_FUNCSTATS = ["name", "ncall", "ttot", "tsub", "tavg"]
+COLUMNS_FUNCSTATS = {"name", "ncall", "ttot", "tsub", "tavg"}
 SORT_TYPES_FUNCSTATS = {
     "name": 0,
     "callcount": 3,
@@ -93,9 +93,9 @@ def _validate_sortorder(sort_order):
     return sort_order
 
 
-def _validate_columns(name, list):
+def _validate_columns(name, columns):
     name = name.lower()
-    if name not in list:
+    if name not in columns:
         raise YappiError("Invalid Column name: '%s'" % (name))
 
 
@@ -197,48 +197,63 @@ def module_matches(stat, modules):
 
 
 def func_matches(stat, funcs):
-    '''
-    This function will not work with stats that are saved and loaded. That is 
-    because current API of loading stats is as following:
-    yappi.get_func_stats(filter_callback=_filter).add('dummy.ys').print_all()
+    """
+    Selects functions from a YStat object via a method descriptor/bound method
+    or function object. The selector type depends on the function object:
+    if the function is a builtin method, you can use method_descriptor.
+    If it is a builtin function, you can select it like e.g: ``time.sleep``.
+    For other cases you could use anything that has a ``__code__`` object.
 
-    funcs: is an iterable that selects functions via method descriptor/bound method
-        or function object. selector type depends on the function object: If function
-        is a builtin method, you can use method_descriptor. If it is a builtin function
-        you can select it like e.g: `time.sleep`. For other cases you could use anything 
-        that has a code object.
-    '''
+    Note:
+        This function will not work with stats which are saved and then loaded.
+        This is because the current API to load stats is as follows:
 
+        ``yappi.get_func_stats(filter_callback=_filter).add('dummy.ys').print_all()``
+
+    Args:
+        stat (YStat):
+        funcs (set):
+
+    Returns:
+        A boolean.
+
+    Raises:
+        YappiError:
+            One of the following:
+                Argument 'stat' is not a YStat object;
+                Argument 'funcs' is not a set object;
+                Argument 'funcs' cannot be empty;
+                Non-callable item in 'funcs'.
+    """
     if not isinstance(stat, YStat):
         raise YappiError(
-            "Argument 'stat' shall be a YStat object. (%s)" % (stat)
+            "Argument 'stat' is not a YStat object. (%s)" % (stat)
         )
 
-    if not isinstance(funcs, list):
+    if not isinstance(funcs, set):
         raise YappiError(
-            "Argument 'funcs' is not a list object. (%s)" % (funcs)
+            "Argument 'funcs' is not a set object. (%s)" % (funcs)
         )
 
-    if not len(funcs):
+    if not funcs:
         raise YappiError("Argument 'funcs' cannot be empty.")
 
     if stat.full_name not in _fn_descriptor_dict:
         return False
 
-    funcs = set(funcs)
     for func in funcs.copy():
         if not callable(func):
             raise YappiError("Non-callable item in 'funcs'. (%s)" % (func))
 
         # If there is no CodeObject found, use func itself. It might be a
-        # method descriptor, builtin func..etc.
+        # method descriptor, builtin function, etc.
         if getattr(func, "__code__", None):
             funcs.add(func.__code__)
 
     try:
         return _fn_descriptor_dict[stat.full_name] in funcs
     except TypeError:
-        # some builtion methods like <method 'get' of 'dict' objects> are not hashable
+        # some builtin methods like <method 'get' of 'dict' objects> are not hashable
         # thus we cannot search for them in funcs set.
         return False
 

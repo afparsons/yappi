@@ -26,7 +26,7 @@ class BasicUsage(utils.YappiUnitTestCase):
         def foo():
             pass
 
-        #with utils.captured_output() as (out, err):
+        # with utils.captured_output() as (out, err):
         yappi.set_context_id_callback(_unsigned_overflow_margin)
         yappi.set_tag_callback(_unsigned_overflow_margin)
         yappi.start()
@@ -48,7 +48,7 @@ class BasicUsage(utils.YappiUnitTestCase):
             len(
                 yappi.get_func_stats(
                     filter_callback=lambda x: yappi.
-                    func_matches(x, [memoryview.tobytes])
+                    func_matches(x, {memoryview.tobytes})
                 )
             ) > 0
         )
@@ -80,7 +80,7 @@ class BasicUsage(utils.YappiUnitTestCase):
         for i in range(1, 3):
             stats = yappi.get_func_stats(tag=i)
             stats = yappi.get_func_stats(
-                tag=i, filter_callback=lambda x: yappi.func_matches(x, [a])
+                tag=i, filter_callback=lambda x: yappi.func_matches(x, {a})
             )
 
             stat = stats.pop()
@@ -188,9 +188,9 @@ class BasicUsage(utils.YappiUnitTestCase):
         c()
         d()
         stats = yappi.get_func_stats(
-            filter_callback=lambda x: yappi.func_matches(x, [a, b])
+            filter_callback=lambda x: yappi.func_matches(x, {a, b})
         )
-        #stats.print_all()
+        # stats.print_all()
         r1 = '''
         tests/test_functionality.py:98 a      2      0.000000  0.200350  0.100175
         tests/test_functionality.py:101 b     1      0.000000  0.120000  0.100197
@@ -211,7 +211,7 @@ class BasicUsage(utils.YappiUnitTestCase):
         self.assertEqual(len(stats), 4)
 
         stats = yappi.get_func_stats(
-            filter_callback=lambda x: yappi.func_matches(x, [time.sleep])
+            filter_callback=lambda x: yappi.func_matches(x, {time.sleep})
         )
         self.assertEqual(len(stats), 1)
         r1 = '''
